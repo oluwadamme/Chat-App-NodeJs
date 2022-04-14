@@ -33,34 +33,45 @@ io.on('connection', (socket)=>{
 
     // sending data from the server to the client
     // it takes in an event parameter to emit the data from the server to the client
-    socket.emit('message', generatedMessage('Welcome'))
-    socket.broadcast.to(user.room).emit('message', generatedMessage(`${user.username} has joined`))// emit a message to all users in a specific room
+    socket.emit('message', generatedMessage('Admin','Welcome'))
+    socket.broadcast.to(user.room).emit('message', generatedMessage('Admin',`${user.username} has joined`))// emit a message to all users in a specific room
+    io.to(user.room).emit('roomData',{
+        room:user.room,
+        users:getUsersInRoom(user.room)
+    })
 
     callback()
     })
 
     // recieving data from the client side
     socket.on('messageSent',(msg, callback)=>{
-        
+        const user = getUser(socket.id)
 
         const filter = new Filter()
         if (filter.isProfane(msg)) {
           return  callback('Profanity is not allowed')
         }
+        
         // send data to all users connected to a server
-        io.emit('message', generatedMessage(msg))
+        io.to(user.room).emit('message', generatedMessage(user.username,msg))
         callback()
     })
 
     socket.on('sendLocation',(coords, callback)=>{
-        io.emit('message',generatedLocationMessage(`https://google.com/maps?q=${coords.latitude},${coords.longitude}`))
+        const user = getUser(socket.id)
+        
+        io.to(user.room).emit('message',generatedLocationMessage(user.username,`https://google.com/maps?q=${coords.latitude},${coords.longitude}`))
         callback()
     })
 
     socket.on('disconnect', ()=>{
         const user = removeUser(socket.id)
         if (user) {
-            io.to(user.room).emit('message', generatedMessage(`${user.username} has left!`))
+            io.to(user.room).emit('message', generatedMessage('Admin',`${user.username} has left!`))
+            io.to(user.room).emit('roomData',{
+                room:user.room,
+                users:getUsersInRoom(user.room)
+            })
         }
         
     })
